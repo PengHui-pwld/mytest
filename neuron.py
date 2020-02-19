@@ -15,7 +15,7 @@ with open(os.path.join(CIFRA_DIR,"data_batch_1"),'rb')as f:#读取data_batch_1�
     print(type(data))#<class 'dict'>
     print(data.keys())#四个类 batch_label(批处理标签)filename(文件名) labels(标签) data(数据)
 
-    print(type(data[b'data']))#'numpy.ndarray'矩阵
+    print(type(data[b'data']))# 'numpy.ndarray'矩阵
     print(type(data[b'labels']))
     print(type(data[b'batch_label']))
     print((type(data[b'filenames'])))
