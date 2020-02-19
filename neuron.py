@@ -1,38 +1,73 @@
 """
 Life is short, you need python
 _@Author_   :penghui
-_@Time_     :2020/2/19&10:35   
+_@Time_     :2020/2/19&21:27   
 """
+import tensorflow as tf
+import os
 import _pickle as cPickle
 import numpy as np
-import os
 
 CIFRA_DIR="./cifar-10-batches-py"
 print(os.listdir(CIFRA_DIR))
 
-with open(os.path.join(CIFRA_DIR,"data_batch_1"),'rb')as f:#读取data_batch_1里面的内容
-    data= cPickle.load(f,encoding='bytes')
-    print(type(data))#<class 'dict'>
-    print(data.keys())#四个类 batch_label(批处理标签)filename(文件名) labels(标签) data(数据)
+class CifarData:
+    def __init__(self,filenames,need_shuffle):
+        all_data=[]
+        all_labels=[]
+        for filenames in filenames:
+            #data,labels=load(filenames)
+            """明天继续"""
 
-    print(type(data[b'data']))# 'numpy.ndarray'矩阵
-    print(type(data[b'labels']))
-    print(type(data[b'batch_label']))
-    print((type(data[b'filenames'])))
+def load_data(filename):
+    """从数据文件读取数据"""
+    with open(filename,'rb') as f:
+        data=cPickle.load(f,encoding='bytes')
+        return data['data'],data['labels']
 
-    image_arr=data[b'data'][100]
-    image_arr=image_arr.reshape((3,32,32))#3表示3个维度，32 32分别表示图片大小32*32
-    image_arr=image_arr.transpose((1,2,0))#图片通道显示顺序为 32 32 3 所以需要交换通道
+x=tf.placeholder(tf.float32,[None,3072])#tensorflow 先搭建图，然后再图里面填充数据，
+                                        #placeholder相当于占位符，相当于变量，用来构建图
+                                        #3072 这里按一维处理 表示3072个维度
+"""[None,3072]"""
 
-    print(data[b'data'].shape)#(10000, 3072)10000*3072的矩阵，10000表示batch_1里面有10000张图片
-                              #3072 图片展开，3个维度合并在一起，图片大小是32*32=1024 1024*3=3072
-                              #3表示颜色的3通道，
-    print(data[b'data'][0:2])#[ 59  43  50 ... 140  84  72]在0-255之间，像素点
-    print(data[b'labels'][0:2])#[6, 9]表示第7和第10类 数据集有10个类
-    print(data[b'batch_label'])
-    print(data[b'filenames'][0:2])#RR-GG-BB=3072
-    import matplotlib.pyplot as plt
-    from matplotlib.pyplot import imshow
-    imshow(image_arr)
-    plt.show()#显示图像
+y=tf.placeholder(tf.int64,[None])  #None 表示第一位，样本数是不确定的，与bach_size对应
+                                    #表示一个维度
+                                    #get_variable获取变量函数
+"""[None]"""
 
+w=tf.get_variable('w',[x.get_shape()[-1],1],#[-1]与切片类似，对应x[]最好一个值(3072),1
+                  initializer=tf.random_normal_initializer(0,1))
+                                            #1表示输出，因为是二分类分离器，所有只有一个输出
+                                            #initializer 初始化w 采用的方法tf.random_normal_initializer()
+                                            #表示正态分布(0,1),标准正态分布
+"""w: 3072*1 (3072,1)"""
+
+b=tf.get_variable('b',[1],initializer=tf.constant_initializer(0.0))
+                                            #b初始化为常量0
+"""b:(1,)"""
+
+y_=tf.matmul(x,w)+b #matmul矩阵乘法
+"""[None,3072]*[3072,1]=[None,1]"""
+
+p_y_1=tf.nn.sigmoid(y_)#预测值
+"""[None,1]"""
+
+y_reshaped=tf.reshape(y,(-1,1))#真实值
+"""[None,1]"""
+
+y_reshaped_float=tf.cast(y_reshaped,tf.float32)#类型一致,最后的真实值
+
+loss=tf.reduce_mean(tf.square(y_reshaped_float - p_y_1))#reduce_mean求均值，square()求平方
+
+"""bool"""
+predict=p_y_1>0.5#预测值 true false
+"""[1,1,0,1,0]"""
+correct_predicton=tf.equal(tf.cast(predict,tf.int64),y_reshaped)#预测正确的预测值
+accuracy=tf.reduce_mean(tf.cast(correct_predicton,tf.float64))
+
+with tf.name_scope('train_op'):
+    train_op=tf.train.AdamOptimizer(1e-3).minimize(loss)#梯度下降方法
+
+init=tf.global_variable_initializer()
+with tf.Session() as sess:
+    sess.run([loss,accuracy,train_op],feed_dict={x:,y:})
