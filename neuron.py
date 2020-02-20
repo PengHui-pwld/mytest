@@ -3,6 +3,7 @@ Life is short, you need python
 _@Author_   :penghui
 _@Time_     :2020/2/19&21:27   
 """
+#单个神经元实现二分类
 import tensorflow as tf
 import os
 import _pickle as cPickle
@@ -30,7 +31,7 @@ class CifarData:
                     all_labels.append(label)
         self._data=np.vstack(all_data)#vstack 纵向上合并
         self._data=self._data/127.5-1#缩放(0-255)/127.5 在(0-2)之间，再-1 缩放到(-1 1)
-        """在不归一化时结果在50%左右"""
+        """在不归一化时结果在50%左右，在0 1之间会导致结果偏向一方 sigmod在偏向一方时，梯度会消失"""
         self._labels=np.hstack(all_labels)#横向合并
         print(self._data.shape)
         print(self._labels.shape)
