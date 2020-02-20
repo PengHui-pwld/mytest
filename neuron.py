@@ -17,7 +17,7 @@ def load_data(filename):
         data=cPickle.load(f,encoding='bytes')
         return data[b'data'],data[b'labels']
 
-
+#tensorflow.Dataset
 class CifarData:
     def __init__(self,filenames,need_shuffle): #shuuffle表示将数据离散化 训练集需要，测试集不需要
         all_data=[]
@@ -29,6 +29,8 @@ class CifarData:
                     all_data.append(item)
                     all_labels.append(label)
         self._data=np.vstack(all_data)#vstack 纵向上合并
+        self._data=self._data/127.5-1#缩放(0-255)/127.5 在(0-2)之间，再-1 缩放到(-1 1)
+        """在不归一化时结果在50%左右"""
         self._labels=np.hstack(all_labels)#横向合并
         print(self._data.shape)
         print(self._labels.shape)
@@ -118,7 +120,8 @@ with tf.name_scope('train_op'):
 """初始化函数"""
 init=tf.global_variables_initializer()
 batch_size=20
-train_steps=10000
+train_steps=100000
+test_steps=100
 
 #tensorflow 开启session 表示开始执行，session(绘画)
 with tf.Session() as sess:
@@ -129,5 +132,14 @@ with tf.Session() as sess:
          #有train_op 表示这次计算有训练，没有train_op表示测试，没有训练
          #feed_dict是要填充的数据，x,y cifar的图片和labels数据
         if (i+1)%500==0:
-            print('[Train] Step: %d,loss:%4.5f,acc:%4.5f'\
-                  %(i+1,loss_val,acc_val))
+            print('[Train] Step: %d,loss:%4.5f,acc:%4.5f'%(i+1,loss_val,acc_val))
+
+        if (i+1)%5000==0:
+            test_data=CifarData(test_filenames,False)
+            all_test_acc_val=[]
+            for j in range(test_steps):
+                test_batch_data,test_batch_labels=test_data.next_batch(batch_size)
+                test_acc_val=sess.run([accuracy],feed_dict={x: test_batch_data,y:test_batch_labels})
+                all_test_acc_val.append(test_acc_val)
+            test_acc=np.mean(all_test_acc_val)
+            print('[Test] Step: %d,acc:%4.5f' %(i+1,test_acc))
