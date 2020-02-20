@@ -11,20 +11,67 @@ import numpy as np
 CIFRA_DIR="./cifar-10-batches-py"
 print(os.listdir(CIFRA_DIR))
 
-class CifarData:
-    def __init__(self,filenames,need_shuffle):
-        all_data=[]
-        all_labels=[]
-        for filenames in filenames:
-            #data,labels=load(filenames)
-            """明天继续"""
-
 def load_data(filename):
     """从数据文件读取数据"""
     with open(filename,'rb') as f:
         data=cPickle.load(f,encoding='bytes')
-        return data['data'],data['labels']
+        return data[b'data'],data[b'labels']
 
+
+class CifarData:
+    def __init__(self,filenames,need_shuffle): #shuuffle表示将数据离散化 训练集需要，测试集不需要
+        all_data=[]
+        all_labels=[]
+        for filenames in filenames:
+            data,labels = load_data(filenames)
+            for item,label in zip(data,labels):
+                if label in [0,1]:
+                    all_data.append(item)
+                    all_labels.append(label)
+        self._data=np.vstack(all_data)#vstack 纵向上合并
+        self._labels=np.hstack(all_labels)#横向合并
+        print(self._data.shape)
+        print(self._labels.shape)
+
+        self._num_examples=self._data.shape[0]
+        self._need_shuffle=need_shuffle
+        self._indicator=0
+        if self._need_shuffle:
+            self._shuffle_data()
+
+    def _shuffle_data(self):
+        p=np.random.permutation(self._num_examples)#0到_num_examples混排
+        self._data=self._data[p]
+        self._labels=self._labels[p]
+
+    def next_batch(self,batch_size):
+        """返回batch_size个样本"""
+        end_indicator=self._indicator+batch_size
+        if end_indicator>self._num_examples:
+            if self._need_shuffle:
+                self._shuffle_data()
+                self._indicator=0
+                end_indicator = batch_size
+            else:
+                raise Exception("have no more examples")
+
+        if end_indicator>self._num_examples:
+            raise Exception("batch size is larger than zhe examples")
+
+        batch_data=self._data[self._indicator:end_indicator]
+        batch_labels=self._labels[self._indicator:end_indicator]
+        self._indicator=end_indicator
+        return batch_data,batch_labels
+
+train_filenames=[os.path.join(CIFRA_DIR,'data_batch_%d'%i)for i in range(1,6)]
+test_filenames=[os.path.join(CIFRA_DIR,'test_batch')]
+
+train_data=CifarData(train_filenames,True)
+test_data=CifarData(test_filenames,False)
+batch_data,batch_labels=train_data.next_batch(10)
+print(batch_data)
+print(batch_labels)
+""""""
 x=tf.placeholder(tf.float32,[None,3072])#tensorflow 先搭建图，然后再图里面填充数据，
                                         #placeholder相当于占位符，相当于变量，用来构建图
                                         #3072 这里按一维处理 表示3072个维度
@@ -68,6 +115,19 @@ accuracy=tf.reduce_mean(tf.cast(correct_predicton,tf.float64))
 with tf.name_scope('train_op'):
     train_op=tf.train.AdamOptimizer(1e-3).minimize(loss)#梯度下降方法
 
-init=tf.global_variable_initializer()
+"""初始化函数"""
+init=tf.global_variables_initializer()
+batch_size=20
+train_steps=10000
+
+#tensorflow 开启session 表示开始执行，session(绘画)
 with tf.Session() as sess:
-    sess.run([loss,accuracy,train_op],feed_dict={x:,y:})
+    sess.run(init)
+    for i in range(train_steps):
+        batch_data,batch_labels=train_data.next_batch(batch_size)
+        loss_val,acc_val,_ =sess.run([loss,accuracy,train_op],feed_dict={x:batch_data,y:batch_labels})
+         #有train_op 表示这次计算有训练，没有train_op表示测试，没有训练
+         #feed_dict是要填充的数据，x,y cifar的图片和labels数据
+        if (i+1)%500==0:
+            print('[Train] Step: %d,loss:%4.5f,acc:%4.5f'\
+                  %(i+1,loss_val,acc_val))
