@@ -3,7 +3,7 @@ Life is short, you need python
 _@Author_   :penghui
 _@Time_     :2020/2/19&21:27   
 """
-#单个神经元实现多分类
+#多个神经元实现多分类 w=10 有10个神经元
 import tensorflow as tf
 import os
 import _pickle as cPickle
