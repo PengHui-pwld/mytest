@@ -111,7 +111,7 @@ loss=tf.reduce_mean(tf.square(y_one_hot - p_y))#reduce_mean求均值，square()�
 loss=tf.losses.sparse_softmax_cross_entropy(labels=y,logits=y_)
 #y_ -> softmax
 #y ->one_hot
-#loss=ylogy_ 交叉熵 acc=33%
+#loss=ylogy_ 交叉熵  acc=33%
 
 
 """[1,0,1,0,1,0,1,0,1,1]"""
