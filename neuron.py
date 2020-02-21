@@ -8,6 +8,7 @@ import tensorflow as tf
 import os
 import _pickle as cPickle
 import numpy as np
+#os.environ['TF_CPP_MIN_LOG_LEVEL']='2' 屏蔽GPU警告
 
 CIFRA_DIR="./cifar-10-batches-py"
 print(os.listdir(CIFRA_DIR))
