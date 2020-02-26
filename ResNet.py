@@ -3,7 +3,7 @@ Life is short, you need python
 _@Author_   :penghui
 _@Time_     :2020/2/19&21:27   
 """
-#train 10000 70.45% 1000 50%
+#train 7000 67%，因为本次reNet只是最基本的，在优化后会达到94%
 #3个卷积层 1个全连接层
 import tensorflow as tf
 import os
@@ -86,8 +86,8 @@ def residual_block(x,output_channel):#output_channel 输出通道数  判断是�
     else:
         raise Exception("input channel can`t match output channel")
 
-    convl=tf.layers.convd2(x,
-                           output_channel
+    convl=tf.layers.conv2d(x,
+                           output_channel,
                            (3,3),
                            strides=strides,
                            padding='same',#(1，1)步长的话输人和输出大小一样
@@ -107,16 +107,65 @@ def residual_block(x,output_channel):#output_channel 输出通道数  判断是�
                                              (2,2),
                                              padding='valid')
         padded_x=tf.pad(pooled_x,
+                        [ [0,0],
                         [0,0],
                         [0,0],
-                        [0,0],
-                        [input_channel//2,input_channel//2])
+                        [input_channel//2,input_channel//2]])
     else:
         padded_x=x
 
     output_x=conv2+padded_x
     return output_x
+def res_net(x,
+            num_residual_blocks,
+            #num_subsampling,
+            num_filter_base,
+            class_num):
+    """
+    Args:
+    :param x:
+    :param num_residual_blocks: 每一层都需要多少残差连接块 [3,4,6,3] 34-layer
+    :param num_subsampling:需要做多少次降采样 :4
+    :param num_filter_base:通道数目的base,最初的通道数目
+    :param class_num:
 
+    """
+    num_subsampling=len(num_residual_blocks)
+    layers=[]
+    #x:[None,width,height,channel]-->[width,height,channel]
+    input_size=x.get_shape().as_list()[1:]
+
+    with tf.variable_scope('conv0'):
+        conv0=tf.layers.conv2d(x,
+                               num_filter_base,
+                               (3,3),
+                               strides=(1,1),
+                               padding='same',
+                               activation=tf.nn.relu,
+                               name='conv0')
+        layers.append(conv0)
+        #num_subsampling=4,sample_id=[0,1,2,3]
+        for sample_id in range(num_subsampling):
+            for i in range(num_residual_blocks[sample_id]):
+                with tf.variable_scope("conv%d_%d"%(sample_id,i)):
+                    conv =residual_block(
+                        layers[-1],
+                        num_filter_base*(2**sample_id) )
+                    layers.append(conv)
+
+        multiplier=2**(num_subsampling-1)
+        assert layers[-1].get_shape().as_list()[1:] \
+            ==[input_size[0]/multiplier,
+               input_size[1]/multiplier,
+               num_filter_base*multiplier]
+
+        with tf.variable_scope('fc'):
+            #layers[-1] 4通道[None,width,height,channel] 1->width,2->height
+            #global_pool kernal_size:image_width,image_height
+            global_pool=tf.reduce_mean(layers[-1],[1,2])
+            logits=tf.layers.dense(global_pool,class_num)#logits,全连接前的值
+            layers.append(logits)
+        return layers[-1]
 
 
 x=tf.placeholder(tf.float32,[None,3072])#tensorflow 先搭建图，然后再图里面填充数据，
@@ -132,7 +181,7 @@ y=tf.placeholder(tf.int64,[None])  #None 表示第一位，样本数是不确定
 x_image=tf.reshape(x,[-1,3,32,32])
 #32*32
 x_image=tf.transpose(x_image,perm=[0,2,3,1])
-y_=tf.layers.dense(x,10)#dense,全连接的封装,10表示中间层
+y_=res_net(x_image,[2,3,2],32,10)
 
 
 loss=tf.losses.sparse_softmax_cross_entropy(labels=y,logits=y_)
