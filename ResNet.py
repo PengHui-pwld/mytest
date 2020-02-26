@@ -132,7 +132,7 @@ y=tf.placeholder(tf.int64,[None])  #None 表示第一位，样本数是不确定
 x_image=tf.reshape(x,[-1,3,32,32])
 #32*32
 x_image=tf.transpose(x_image,perm=[0,2,3,1])
-y_=tf.layers.dense(flatten,10)#dense,全连接的封装,10表示中间层
+y_=tf.layers.dense(x,10)#dense,全连接的封装,10表示中间层
 
 
 loss=tf.losses.sparse_softmax_cross_entropy(labels=y,logits=y_)
